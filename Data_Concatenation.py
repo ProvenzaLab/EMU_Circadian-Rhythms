@@ -1,4 +1,7 @@
 from pathlib import Path
+import pandas as pd
+from scipy.signal import decimate
+import numpy as np
 
 
 fileCnt = 1
@@ -64,6 +67,28 @@ for i, folder in enumerate(fileList):
                leftDownArr = []
                rightDownArr = []
                
+               #Downsampling data to 200 Hz
+               if fs == 2000:
+                   leftDownArr = decimate(ns3Data.Data[LeftElectrodeIDs,:],4, axis=1)
+                   df = pd.DataFrame(leftDownArr)
+                   leftDownArr = df.interpolate(method='linear', axis=1) #interpolate across NaNs
+
+                   rightDownArr = decimate(ns3Data.Data[RightElectrodeIDs,:],4, axis=1)
+                   df = pd.DataFrame(rightDownArr)
+                   rightDownArr = df.interpolate(method='linear',axis=1) #interpolate across NaNs
+                   
+               if fs == 30000:
+                   leftDownArr = decimate(ns3Data.Data[LeftElectrodeIDs,:],60, axis=1)
+                   df = pd.DataFrame(leftDownArr)
+                   leftDownArr = df.interpolate(method='linear',axis =1) #interpolate across NaNs
+
+                   rightDownArr = decimate(ns3Data.Data[RightElectrodeIDs,:],60, axis=1)
+                   df = pd.DataFrame(rightDownArr)
+                   rightDownArr = df.interpolate(method='linear',axis=1) #interpolate across NaNs
+
+               #FIND way to organize all data
+               
+
            except Exception as e:
                del LeftLFPArray
                continue
