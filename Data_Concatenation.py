@@ -2,6 +2,8 @@ from pathlib import Path
 import pandas as pd
 from scipy.signal import decimate
 import numpy as np
+import os
+import brpylib.py
 
 
 fileCnt = 1
@@ -35,13 +37,13 @@ if interv ==2:
     intervNum = 20
 
 for i, folder in enumerate(fileList):
-    if .......
+    if os.path.isdir(folder) and '.' not in folder: 
        ns3_path = Path(patient_path) / file_list[folder].name
-       ns3List = ......
+       ns3List = os.listdir(ns3_path)
 
        for j, file in enumerate(ns3List):
            
-           if ......
+           if not ('.ns3' in file or '.ns5' in file): #checks if we are pulling either a .ns3 or .ns5, otherwise skip
                continue
 
 
@@ -50,7 +52,10 @@ for i, folder in enumerate(fileList):
                    fs = 30000
                 if '.ns3' in file.name:
                    fs = 2000
-                ns3Data = openNSx.......
+                datafile = Path(ns3_path)/file
+                ns3Data = NsxFile(datafile)
+                NsxFile.datafile.close() #BlackRock recommends to close it after extracting data
+
            except Exception as e:
                print('Caught')
                continue
@@ -61,7 +66,7 @@ for i, folder in enumerate(fileList):
                for x, electrode in enumerate(ns3Data.ElectrodesInfo):
                    allElectrodes[electrodeList] = ns3Data.ElectrodeInfo[electrodeList].Label
 
-            except Exception as e:
+           except Exception as e:
                continue
            
            LeftElectrodeIDs = [i for i, name in enumerate(allElectrodes) if 'LdPF-ACC' in name]
@@ -109,6 +114,7 @@ for i, folder in enumerate(fileList):
 
            except Exception as e:
                del LeftLFPArray
+               del RightLFPArray
                continue
            
            
