@@ -1,0 +1,19 @@
+[project]
+name = "emu-circadian-rhythms"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "edfio>=0.4.10",
+    "h5py>=3.14.0",
+    "ipython>=9.6.0",
+    "joblib>=1.5.2",
+    "matplotlib>=3.10.7",
+    "mne>=1.10.1",
+    "neo>=0.14.2",
+    "pybv>=0.7.6",
+    "pynwb>=3.1.2",
+    "tqdm>=4.67.1",
+    "tqdm-joblib>=0.0.5",
+]
