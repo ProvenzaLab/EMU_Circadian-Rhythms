@@ -1,0 +1,6 @@
+data/*
+figures/*
+launch.json
+logs/*
+__pycache__/
+*.pyc
