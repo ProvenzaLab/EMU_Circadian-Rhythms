@@ -4,6 +4,7 @@ from scipy.signal import decimate
 import numpy as np
 import os
 from scipy.io import loadmat
+from scipy.io import savemat
 
 
 fileCnt = 1
@@ -27,8 +28,10 @@ TimeStamps = []
 #if interv ==2:
     #intervNum = 20
 
-folderPath = "/projects/np66/tm/TRD011"
-files = os.listdir(folder)
+
+folderPath = os.path.join(os.environ["WORK"], "np66", "TRD011_Files")
+
+files = os.listdir(folderPath)
 
 for fileNum, fileName in enumerate(files): 
     nsxPath = os.path.join(folderPath, fileName)
@@ -43,12 +46,6 @@ for fileNum, fileName in enumerate(files):
     Date_time = Date_timeOrg.split(" ")[0]
    
     time_stamp = Date_timeOrg.split(" ")[1]
-
-
-
-
-
-
 
     try:
         if '.ns5' in file_ext:
@@ -72,45 +69,62 @@ for fileNum, fileName in enumerate(files):
                 leftElectrodeIdx.append([electrodeName,electrode]) #store both the electrode name and its index
             if 'R' in electrodeName[0]: #check if first letter is R for right hemisphere
                 rightElectrodeIdx.append([electrodeName,electrode])
-
-        leftDownArr = []
-        rightDownArr = []
         
         #Downsampling data to 200 Hz
         if fs == 2000:
             leftDownArr = []
             rightDownArr = []
-            for electrode in range(leftElectrodeIdx.shape[0]): #left electrode loop
-                currArr = nsx['Data'][leftElectrodeIdx[electrode,1]]
+            for electrode in range(len(leftElectrodeIdx)): #left electrode loop
+                currArrLeft = []
+                currArr = []
+                currArr = nsx['Data'][leftElectrodeIdx[electrode][1]]
                 df = pd.DataFrame(currArr)
-                leftDownArr = df.interpolate(method='linear')
-                leftDownArr = np.array(leftDownArr)
-                leftDownArr = decimate(leftDownArr,4)
+                currArrLeft = df.interpolate(method='linear').to_numpy().squeeze()
+           
+                currArrLeft = decimate(currArrLeft,4)
+                leftDownArr.append(currArrLeft)
+
+            leftDownArr = np.array(leftDownArr)
     
-            for electrode in range(rightElectrodeIdx.shape[0]): #right electrode loop
-                currArr = nsx['Data'][rightElectrodeIdx[electrode,1]]
+            for electrode in range(len(rightElectrodeIdx)): #right electrode loop
+                currArrRight = []
+                currArr = []
+                currArr = nsx['Data'][rightElectrodeIdx[electrode][1]]
                 df = pd.DataFrame(currArr)
-                rightDownArr = df.interpolate(method='linear')
-                rightDownArr = np.array(rightDownArr)
-                rightDownArr = decimate(rightDownArr,4)
+                currArrRight = df.interpolate(method='linear').to_numpy().squeeze()
+             
+                currArrRight = decimate(currArrRight,4)
+                rightDownArr.append(currArrRight)
+
+            rightDownArr = np.array(rightDownArr)
             
 
         if fs == 30000:
             leftDownArr = []
             rightDownArr = []
-            for electrode in range(leftElectrodeIdx.shape[0]): #left electrode loop
-                currArr = nsx['Data'][leftElectrodeIdx[electrode,1]]
+            for electrode in range(len(leftElectrodeIdx)): #left electrode loop
+                currArrLeft = []
+                currArr = []
+                currArr = nsx['Data'][leftElectrodeIdx[electrode][1]]
                 df = pd.DataFrame(currArr)
-                leftDownArr = df.interpolate(method='linear')
-                leftDownArr = np.array(leftDownArr)
-                leftDownArr = decimate(leftDownArr,60)
+                currArrLeft = df.interpolate(method='linear').to_numpy().squeeze()
+              
+                currArrLeft = decimate(currArrLeft,60)
+                leftDownArr.append(currArrLeft)
+
+            leftDownArr = np.array(leftDownArr)
     
-            for electrode in range(rightElectrodeIdx.shape[0]): #right electrode loop
-                currArr = nsx['Data'][rightElectrodeIdx[electrode,1]]
+            for electrode in range(len(rightElectrodeIdx)): #right electrode loop
+                currArrRight = []
+                currArr = []
+                currArr = nsx['Data'][rightElectrodeIdx[electrode][1]]
                 df = pd.DataFrame(currArr)
-                rightDownArr = df.interpolate(method='linear')
-                rightDownArr = np.array(rightDownArr)
-                rightDownArr = decimate(rightDownArr,60)
+                currArrRight = df.interpolate(method='linear').to_numpy().squeeze()
+            
+                currArrRight = decimate(currArrRight,60)
+                rightDownArr.append(currArrRight)
+
+            rightDownArr = np.array(rightDownArr)
             
 
 
@@ -120,13 +134,27 @@ for fileNum, fileName in enumerate(files):
         DateTimes.append(Date_time)
         TimeStamps.append(time_stamp)
 
+        
 
     except Exception as e:
         continue
-           
-           
-               
-            
-    
 
+
+filename1 = "Left_TRD011.mat"
+filename2 = "Right_TRD011.mat"
+filename3 = "Date_TRD011.mat"
+filename4 = "Time_TRD011.mat"
+
+filePathSave = os.path.join(os.environ["WORK"], "np66", "TRD011_Processed")
+
+outpath1 = os.path.join(filePathSave, filename1)
+outpath2 = os.path.join(filePathSave, filename2)
+outpath3 = os.path.join(filePathSave, filename3)
+outpath4 = os.path.join(filePathSave, filename4)
+
+#Save out all
+savemat(outpath1, {"LeftAll": LeftAll})
+savemat(outpath2, {"RightAll": RightAll})
+savemat(outpath3, {"DateTimes": DateTimes})
+savemat(outpath4, {"TimeStamps": TimeStamps})
 
