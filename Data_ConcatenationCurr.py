@@ -34,31 +34,33 @@ folderPath = os.path.join(os.environ["WORK"], "np66", "TRD011_Files")
 files = os.listdir(folderPath)
 
 for fileNum, fileName in enumerate(files): 
-    nsxPath = os.path.join(folderPath, fileName)
+    try:    
+        nsxPath = os.path.join(folderPath, fileName)
 
-    nsxDataPre = loadmat(nsxPath) 
-    nsx = nsxDataPre['PHI_removed_ns'][0,0]
-    metaTag = nsx['MetaTags'][0,0]
+    
+    
+    
+        nsxDataPre = loadmat(nsxPath) 
+        nsx = nsxDataPre['PHI_removed_ns'][0,0]
+        metaTag = nsx['MetaTags'][0,0]
 
-    file_ext = ''.join(metaTag['FileExt'][0])
+        file_ext = ''.join(metaTag['FileExt'][0])
 
-    Date_timeOrg = ''.join(metaTag['DateTime'][0])
-    Date_time = Date_timeOrg.split(" ")[0]
+        Date_timeOrg = ''.join(metaTag['DateTime'][0])
+        Date_time = Date_timeOrg.split(" ")[0]
    
-    time_stamp = Date_timeOrg.split(" ")[1]
+        time_stamp = Date_timeOrg.split(" ")[1]
 
-    try:
+    
         if '.ns5' in file_ext:
             fs = 30000
         if '.ns3' in file_ext:
             fs = 2000
 
-    except Exception as e:
-        print('Caught')
-        continue
-    print('File successfully loaded.')
+    
+        print('File successfully loaded.')
 
-    try:
+    
         
         ## Find electrodes that denote Left and Right and separate them out + save out their names
         leftElectrodeIdx = [] #array = each row is an electrode; column 0 is the name, column 1 is the index in the original struct/dictionary
