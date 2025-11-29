@@ -28,8 +28,12 @@ TimeStamps = []
 #if interv ==2:
     #intervNum = 20
 
-work_dir = os.environ.get("WORK")
-folderPath = os.path.join(work_dir, "np66", "TRD011_Files")
+project_dir = os.environ.get("PROJECTS")
+if project_dir is None:
+    raise RuntimeError("PROJECTS environment is not set...")
+
+folderPath = os.path.join(project_dir, "np66", "TRD011_Files")
+filePathSave = os.path.join(project_dir,"np66","TRD011_Processed")
 
 
 files = os.listdir(folderPath)
@@ -147,9 +151,6 @@ filename1 = "Left_TRD011.mat"
 filename2 = "Right_TRD011.mat"
 filename3 = "Date_TRD011.mat"
 filename4 = "Time_TRD011.mat"
-
-
-filePathSave = os.path.join(work_dir, "np66", "TRD011_Processed")
 
 outpath1 = os.path.join(filePathSave, filename1)
 outpath2 = os.path.join(filePathSave, filename2)
