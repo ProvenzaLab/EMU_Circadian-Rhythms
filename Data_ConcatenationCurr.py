@@ -141,6 +141,9 @@ for fileNum, fileName in enumerate(files):
         DateTimes.append(Date_time)
         TimeStamps.append(time_stamp)
 
+        LeftAll = [blk.astype('float32') for blk in LeftAll]
+        RightAll = [blk.astype('float32') for blk in RightAll]
+
         
 
     except Exception as e:
