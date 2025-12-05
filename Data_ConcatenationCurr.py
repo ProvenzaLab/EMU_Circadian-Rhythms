@@ -4,7 +4,6 @@ from scipy.signal import decimate
 import numpy as np
 import os
 from scipy.io import loadmat
-from scipy.io import savemat
 import h5py
 
 
