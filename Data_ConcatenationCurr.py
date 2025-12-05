@@ -5,6 +5,7 @@ import numpy as np
 import os
 from scipy.io import loadmat
 from scipy.io import savemat
+import h5py
 
 
 fileCnt = 1
@@ -135,6 +136,7 @@ for fileNum, fileName in enumerate(files):
             
 
 
+
         #FIND way to organize all data
         LeftAll.append(leftDownArr) #A list of 2D matrices that contain all electrodes for each 20 min interval
         RightAll.append(rightDownArr)
@@ -150,19 +152,22 @@ for fileNum, fileName in enumerate(files):
         continue
 
 
-filename1 = "Left_TRD011.mat"
-filename2 = "Right_TRD011.mat"
-filename3 = "Date_TRD011.mat"
-filename4 = "Time_TRD011.mat"
+date_strings = np.array(DateTimes, dtype='S32')   # full "date time" strings
+time_strings = np.array(TimeStamps, dtype='S16')  # "HH:MM:SS" strings
 
-outpath1 = os.path.join(filePathSave, filename1)
-outpath2 = os.path.join(filePathSave, filename2)
-outpath3 = os.path.join(filePathSave, filename3)
-outpath4 = os.path.join(filePathSave, filename4)
 
-#Save out all
-savemat(outpath1, {"LeftAll": LeftAll})
-savemat(outpath2, {"RightAll": RightAll})
-savemat(outpath3, {"DateTimes": DateTimes})
-savemat(outpath4, {"TimeStamps": TimeStamps})
+save_dir = f"{os.environ['SHARED_SCRATCH']}/jra15/TRD011_Processed"
+
+with h5py.File(f"{save_dir}/Left_TRD011.h5", "w") as f:
+    f["Left"] = np.stack(LeftAll)
+
+with h5py.File(f"{save_dir}/Right_TRD011.h5", "w") as f:
+    f["Right"] = np.stack(RightAll)
+
+with h5py.File(f"{save_dir}/Date_TRD011.h5", "w") as f:
+    f["Date"] = date_strings  
+
+with h5py.File(f"{save_dir}/Time_TRD011.h5", "w") as f:
+    f["Time"] = time_strings   
+
 
