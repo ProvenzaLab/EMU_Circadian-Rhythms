@@ -157,16 +157,28 @@ time_strings = np.array(TimeStamps, dtype='S16')  # "HH:MM:SS" strings
 
 save_dir = f"{os.environ['SHARED_SCRATCH']}/jra15/TRD011_Processed"
 
-with h5py.File(f"{save_dir}/Left_TRD011.h5", "w") as f:
-    f["Left"] = np.stack(LeftAll)
 
-with h5py.File(f"{save_dir}/Right_TRD011.h5", "w") as f:
-    f["Right"] = np.stack(RightAll)
+out_path = f"{save_dir}/TRD011_all.h5"
 
-with h5py.File(f"{save_dir}/Date_TRD011.h5", "w") as f:
-    f["Date"] = date_strings  
+with h5py.File(out_path, "w") as f:
+    # Create groups for hemispheres
+    gL = f.create_group("Left")
+    gR = f.create_group("Right")
 
-with h5py.File(f"{save_dir}/Time_TRD011.h5", "w") as f:
-    f["Time"] = time_strings   
+    # Iterate interval-by-interval (all lists same length)
+    for i, (L, R, d, t) in enumerate(zip(LeftAll, RightAll, DateTimes, TimeStamps)):
+        name = f"blk_{i:06d}"  # zero-padded, sortable name
 
+        # Save Left interval
+        dL = gL.create_dataset(name,data=L.astype("float32"),compression="gzip")
+
+        # Save Right interval
+        dR = gR.create_dataset(name,data=R.astype("float32"),compression="gzip")
+
+        # Attach per-interval metadata as attributes
+        dL.attrs["Date"] = d
+        dL.attrs["Time"] = t
+
+        dR.attrs["Date"] = d
+        dR.attrs["Time"] = t
 
