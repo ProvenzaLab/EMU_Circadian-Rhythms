@@ -28,14 +28,9 @@ TimeStamps = []
 #if interv ==2:
     #intervNum = 20
 
-project_dir = os.environ.get("PROJECTS")
-if project_dir is None:
-    raise RuntimeError("PROJECTS environment is not set...")
+project_dir = f"{os.environ['SHARED_SCRATCH']}/jra15"
 
-folderPath = os.path.join(project_dir, "np66", "TRD011_Files")
-filePathSave = os.path.join(project_dir,"np66","TRD011_Processed")
-
-
+folderPath = os.path.join(project_dir, "TRD011_Files")
 files = os.listdir(folderPath)
 
 for fileNum, fileName in enumerate(files): 
