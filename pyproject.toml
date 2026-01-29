@@ -5,15 +5,21 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "brpylib",
     "edfio>=0.4.10",
     "h5py>=3.14.0",
     "ipython>=9.6.0",
     "joblib>=1.5.2",
+    "loguru>=0.7.3",
     "matplotlib>=3.10.7",
     "mne>=1.10.1",
     "neo>=0.14.2",
+    "nibabel>=5.3.3",
     "pybv>=0.7.6",
     "pynwb>=3.1.2",
     "tqdm>=4.67.1",
     "tqdm-joblib>=0.0.5",
 ]
+
+[tool.uv.sources]
+brpylib = { git = "https://github.com/BlackrockNeurotech/Python-Utilities.git" }
