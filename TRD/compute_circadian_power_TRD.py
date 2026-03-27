@@ -11,7 +11,7 @@ from joblib import Parallel, delayed
 PATH_DATA = "chunks_power"
 band_vals = ["delta", "theta", "alpha", "beta", "low_gamma", "high_gamma"]
 
-files_ = [f for f in os.listdir(PATH_DATA) if f.endswith("_power.csv")]
+files_ = [f for f in os.listdir(PATH_DATA) if f.endswith("_power.csv") and f.startswith("DBS")] #erase the DBS after you check for the continuity of power
 subjects = sorted(list(set([f.split("_")[0] for f in files_])))
 
 
@@ -24,8 +24,24 @@ def compute_file_sub_ch(file, SHUFFLE=False):
     df = df.sort_values(by="date")
     # set index 
     df = df.set_index("date")
-    # resample to 10 minute intervals, mean power
-    df_g = df.groupby("band")["power"].resample("10T").mean().interpolate(method='linear').reset_index()
+    # resample to 20 minute intervals, mean power
+    #df_g = df.groupby("band")["power"].resample("20T").mean().interpolate(method='linear').reset_index()
+    #---------------------------------------
+    
+    df_r = df.groupby("band")["power"].resample("20T").mean()
+
+# --- DIAGNOSTIC PLOT (delta only) ---
+    #df_delta_raw = df_r.loc["delta"].reset_index()
+
+    # plt.figure(figsize=(12,4))
+    # plt.plot(df_delta_raw["date"], df_delta_raw["power"], marker='o', linestyle='-')
+    # plt.title(f"Raw 20-min resampled (before interpolation) - {sub} {ch}")
+    # plt.xticks(rotation=45)
+    # plt.savefig(f"/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/_2{sub}_{ch}.png", dpi=150, bbox_inches="tight")
+
+    # Now interpolate for actual analysis
+    df_g = df_r.interpolate(method='linear').reset_index()
+#---------------------------------------    
     if SHUFFLE:
         df_g = df_g.groupby("band").apply(lambda x: x.assign(power=np.random.permutation(x["power"].values))).reset_index(drop=True)
 
@@ -34,19 +50,19 @@ def compute_file_sub_ch(file, SHUFFLE=False):
     period_hr_r = None
     for band in band_vals:
         df_band = df_g[df_g["band"] == band]
-        # ok, difference is now aways 10 minutes
+        # ok, difference is now aways 20 minutes
         power_ = df_band["power"].values
         # np.where(np.isnan(power_))
         # I want to run a welch's method on this time series to get the circadian power
         power_zs = stats.zscore(power_)
-        fs = 1 / (10 * 60) 
+        fs = 1 / (20 * 60) 
 
         # data is in 10 min intervals,
         # i want to clip at the lower day
-        # check first that length is > 144
-        if power_zs.shape[0] < 144:
+        # check first that length is > 72 (one day)
+        if power_zs.shape[0] < 72:
             continue
-        power_zs_d = power_zs[:(power_zs.shape[0] // 144) * 144]
+        power_zs_d = power_zs[:(power_zs.shape[0] // 72) * 72]
         f, Pxx = signal.welch(power_zs_d, fs=fs, nperseg=power_zs_d.shape[0])
 
         period_hr = 1 / f[1:] / 3600
@@ -101,7 +117,7 @@ def run_sub(subject, SHUFFLE=False):
         plt.suptitle(f"Circadian Power Spectrum - {sub} {ch} {band_vals[0]}")
         plt.tight_layout()
         #pdf_.savefig(f"circadian_power_{sub}_{ch}.pdf")
-        pdf_.savefig(plt.gcf())
+        #pdf_.savefig(plt.gcf())
         plt.close()
     pdf_.close()
 
@@ -114,8 +130,9 @@ def run_sub(subject, SHUFFLE=False):
 
 if __name__ == "__main__":
     #run_sub(subjects[0], SHUFFLE=True)  # test run
-    Parallel(n_jobs=40)(
+    Parallel(n_jobs=45)(
         delayed(run_sub)(subject, SHUFFLE=shuffle_) for subject in subjects for shuffle_ in [False, True]
     )
+
 
 # nohup python compute_circadian_power.py > compute_circadian_power.log 2>&1 &

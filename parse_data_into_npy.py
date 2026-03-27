@@ -7,6 +7,7 @@ from tqdm_joblib import tqdm_joblib
 from tqdm import tqdm
 import pandas as pd
 from time import time
+import sys
 
 import mne
 from neo.io import BlackrockIO
@@ -17,8 +18,8 @@ import brpylib
 # Config
 # =========================
 PATH_DATA = "/mnt/datalake/data/emu"
-PATH_OUT = "/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/data_250Hz"
-N_JOBS = 20  # joblib workers
+PATH_OUT = "/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/data_250Hz_new"
+N_JOBS = 4  # joblib workers
 
 os.makedirs(PATH_OUT, exist_ok=True)
 
@@ -47,14 +48,14 @@ def read_ns3_file(ns3_file_path: str) -> mne.io.Raw:
     info = mne.create_info(ch_names=channels, sfreq=fs, ch_types="seeg")
     dt = dt.astimezone(datetime.timezone.utc)
     info.set_meas_date(dt)
-    data = voltages.T * 1e-6  # convert to Volts
+    data = voltages.T * 1e-6  * 4 # convert to Volts, times 4 is important bc of neo brpylib conversion
     data = data.astype(np.float32)
     raw = mne.io.RawArray(data, info, verbose=False)
     raw.resample(250, npad="auto", n_jobs=N_JOBS)
     return raw
 
 
-def ns3_header(ns3_file_path: str, LIMIT_DURATION_MIN: int = None):
+def ns3_header(ns3_file_path: str, LIMIT_DURATION_MIN: int = None, read_ns3=True):
     """
     Lightweight header read to get (timestamp_str_UTC, channel_names) without loading all data.
     Uses BlackrockRawIO (header only) and a tiny lazy read to get rec_datetime if needed.
@@ -65,7 +66,10 @@ def ns3_header(ns3_file_path: str, LIMIT_DURATION_MIN: int = None):
     # Channel names from header
     chan_info = r.header["signal_channels"]
     try:
-        ch_names = [c[1] for c in chan_info]  # many neo versions store (id, name, ...)
+        if read_ns3:
+            ch_names = [c[1] for c in chan_info]  # many neo versions store (id, name, ...)
+        else:
+            ch_names = [c[0] for c in chan_info]
     except Exception:
         ch_names = [c["name"] for c in chan_info]
 
@@ -88,20 +92,20 @@ def ns3_header(ns3_file_path: str, LIMIT_DURATION_MIN: int = None):
     #timestamp_str = dt.strftime("%Y%m%dT%H%M%S")
     return dt, ch_names
 
-def process_file(data_range_path: str, ns3_file: str, path_output: str, subject: str):
+def process_file(data_range_path: str, ns3_file: str, path_output: str, subject: str, read_ns3=True):
 
     ns3_file_path = os.path.join(data_range_path, ns3_file)
 
     try:
         # Quick header probe: timestamp + channels
-        timestamp_str, ch_names = ns3_header(ns3_file_path)
+        timestamp_str, ch_names = ns3_header(ns3_file_path, read_ns3=read_ns3)
         if timestamp_str is None:
            print(f"Skip (too long): {ns3_file_path}")
            return
         str_dt = timestamp_str.strftime("%Y%m%dT%H%M%S")
         out_filename = f"{subject}_{str_dt}_data.npy"
         if os.path.exists(os.path.join(path_output, out_filename)):
-            #print(f"Skip (exists): {ns3_file_path}")
+            print(f"Skip (exists): {ns3_file_path}")
             return
 
         print(f"Processing: {ns3_file_path}")
@@ -154,51 +158,48 @@ def process_file(data_range_path: str, ns3_file: str, path_output: str, subject:
 if __name__ == "__main__":
 
     subjects = [s for s in os.listdir(PATH_DATA) if s.startswith("YF")]
-
+    ns5_files_to_proces = []
     # get all files ending with ns3 in folders, sub-folders, and sub-sub-folders
-    for subject in subjects[11:]:
-        subject_path = os.path.join(PATH_DATA, subject)
-        sub_path_out = os.path.join(PATH_OUT, subject)
-        os.makedirs(sub_path_out, exist_ok=True)
+    PASS_NS3_CHECK = False
+    #for subject in subjects:
+    subject = subjects[int(sys.argv[1])]
+    subject_path = os.path.join(PATH_DATA, subject)
+    sub_path_out = os.path.join(PATH_OUT, subject)
+    os.makedirs(sub_path_out, exist_ok=True)
 
-        subject_path_data = os.path.join(subject_path, "DATA")
-        if not os.path.isdir(subject_path_data):
-            print(f"Missing DATA folder for subject {subject}: {subject_path_data}")
+    subject_path_data = os.path.join(subject_path, "DATA")
+    #if not os.path.isdir(subject_path_data):
+    #    print(f"Missing DATA folder for subject {subject}: {subject_path_data}")
+    #    continue
+
+    data_ranges = [f for f in os.listdir(subject_path_data) if f.startswith("2")]
+    for data_range in data_ranges:#, desc=f"Data Ranges [{subject}]"):
+        data_range_path = os.path.join(subject_path_data, data_range)
+        if not os.path.isdir(data_range_path):
+            print(f"Not a directory: {data_range_path}")
             continue
 
-        data_ranges = [f for f in os.listdir(subject_path_data) if f.startswith("2")]
-        for data_range in data_ranges:#, desc=f"Data Ranges [{subject}]"):
-            data_range_path = os.path.join(subject_path_data, data_range)
-            if not os.path.isdir(data_range_path):
-                print(f"Not a directory: {data_range_path}")
-                continue
-
-            l_ns3 = [f for f in os.listdir(data_range_path) if f.endswith("ns3")]
-            if not l_ns3:
-                print(f"No NS3 files in {data_range_path}")
-                continue
-            
-            for l_ns3_file in l_ns3:
-                process_file(data_range_path, l_ns3_file, sub_path_out, subject)
-        print(f"Completed subject: {subject}")
-                # subject = "YFFDataFile"
-                # data_range_path = "/mnt/datalake/data/emu/YFFDatafile/DATA/20240819-200938"
-                # l_ns3_file = "NSP1-20240819-200938-012.ns3"
-                # l_ns3_file = "NSP1-20240819-200938-026.ns3"
-                #process_file(data_range_path, l_ns3_file, sub_path_out, subject)
-            
-            # 4 h long! 
-            #subject = "YFLDataFile"
-            #data_range_path = "/mnt/datalake/data/emu/YFLDatafile/DATA/20250224-201223"
-            #l_ns3_file = "NSP1-20250224-201223-006.ns3" 
+        l_ns3 = [f for f in os.listdir(data_range_path) if f.endswith("ns3")]
+        if not l_ns3:
+            print(f"No NS3 files in {data_range_path}")
+            l_ns5 = [f for f in os.listdir(data_range_path) if f.endswith("ns5")]
+            if l_ns5:
+                # add every elemt in l_ns5 to a list and save as a single npy file
+                for ns5_file in l_ns5:
+                    ns5_files_to_proces.append((data_range_path, ns5_file, sub_path_out, subject))
+                
+                for ns5_file in l_ns5:
+                    process_file(data_range_path, ns5_file, sub_path_out, subject, read_ns3=False)
+            continue
         
-            # subject = "YFGDatafile"
-            # data_range_path = "/mnt/datalake/data/emu/YFGDatafile/DATA/20240927-145227/"
-            # l_ns3_file = "NSP1-20240927-145227-008.ns3"
-            # process_file(data_range_path, l_ns3_file, sub_path_out, subject)
+        if PASS_NS3_CHECK is True:
+            continue
+        for l_ns3_file in l_ns3:
+            process_file(data_range_path, l_ns3_file, sub_path_out, subject)
 
+    #print(f"Completed subject: {subject}")
 
-            # Parallel(n_jobs=N_JOBS)(
-            #     delayed(process_file)(data_range_path, ns3_file, sub_path_out, subject)
-            #     for ns3_file in l_ns3
-            # )
+#df_ns5 = pd.DataFrame(ns5_files_to_proces, columns=["data_range_path", "ns5_file", "sub_path_out", "subject"])
+#df_ns5.to_csv("ns5_files_to_process.csv", index=False)
+
+# nohup python parse_data_into_npy.py > main.out 2>&1 &

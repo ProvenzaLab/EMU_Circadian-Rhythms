@@ -23,4 +23,4 @@ files that failed:
  - /mnt/datalake/data/emu/YFMDatafile/DATA/20250313-095037/NSP1-20250313-095037-147.ns3 
  - /mnt/datalake/data/emu/YFQDatafile/DATA/20250612-102311/NSP1-20250612-102311-130.ns3
  - /mnt/datalake/data/emu/YFUDatafile/DATA/20251211-131720/NSP1-20251211-131720-120.ns3
- 
+ - /mnt/datalake/data/TRD-43036/DBSTRD011/NEURAL/20240720-071633/20240720-071633-001.ns3
