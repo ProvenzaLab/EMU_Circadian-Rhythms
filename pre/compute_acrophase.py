@@ -7,26 +7,8 @@ from scipy import stats
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 import joblib
+from pandas.errors import EmptyDataError
 
-
-class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
-    def __call__(self, *args, **kwargs):
-        tqdm_obj.update(n=self.batch_size)
-        return super().__call__(*args, **kwargs)
-
-old_callback = joblib.parallel.BatchCompletionCallBack
-
-def parallel_with_tqdm(n_jobs, total):
-    def _run(tasks):
-        global tqdm_obj
-        tqdm_obj = tqdm(total=total)
-        joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
-        try:
-            return Parallel(n_jobs=n_jobs)(tasks)
-        finally:
-            joblib.parallel.BatchCompletionCallBack = old_callback
-            tqdm_obj.close()
-    return _run
 
 def cosinor_factory(omega_hours=24):
     def cosinor(t, M, A, phi):
@@ -66,7 +48,6 @@ def fit_function(func, t, y, M0, A0, phi0, bounds=([-np.inf, 0, -np.pi], [np.inf
         bounds=bounds,
         maxfev=maxfev
     )
-
     perr = np.sqrt(np.diag(pcov))
     n = len(y)
     p = len(popt)
@@ -130,25 +111,29 @@ def apply_sliding_cosinor(group_df, cosinor_omega=24, window_size_days=3):
     return pd.DataFrame(result)
 
 
-
 def process_one_csv(csv_path):
    
-    
+    try:
+        df = pd.read_csv(csv_path, parse_dates=["date"])
+    except EmptyDataError:
+        return pd.DataFrame()
+    if df.empty:
+        return pd.DataFrame()
 
-
-    df = pd.read_csv(csv_path, parse_dates=["date"])
-    
     chan_name = df["ch"].iloc[0]
     pat_name  = df["sub"].iloc[0]
-    ch0 = str(chan_name).strip().upper()
-    hemi = ch0[0] if len(ch0) else ""
 
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values(by="date")
     # set index 
     df = df.set_index("date")
+    df = df.dropna(subset=["feature_name", "power"])
     # resample to 10 minute intervals, mean power
-    df_g = df.groupby("band")["power"].resample("10min").mean().interpolate(method='linear').reset_index()
+    oup1 = os.path.join("/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/csvCHECK","with_BEFORE.csv")
+    df.to_csv(oup1)
+    df_g = df.groupby("feature_name")["power"].resample("10min").mean().interpolate(method='linear').reset_index()
+    oup2 = os.path.join("/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/csvCHECK","with_nans.csv")
+    df_g.to_csv(oup2)
 
     df_g["CT_timestamp"] = df_g["date"]
 
@@ -158,31 +143,27 @@ def process_one_csv(csv_path):
     ).dt.days.astype(int)
 
     results = []  
+    
 
-    for band, g in df_g.groupby("band",sort=False):
-        power_z = zscore(g["power"], nan_policy="omit")
+    for band, g in df_g.groupby("feature_name",sort=False):
+        g = g.copy()
 
-        if hemi == "R":
-            left_series = np.full(len(power_z), np.nan)
-            right_series = power_z
-        elif hemi == "L":
-            left_series = power_z
-            right_series = np.full(len(power_z), np.nan)
-        else:
-            continue
+        g["power_z"] = (
+        g.groupby("days_since_dbs")["power"]
+         .transform(lambda x: zscore(x, nan_policy="omit"))
+        )
 
         df_input = pd.DataFrame({
-        "days_since_dbs": g["days_since_dbs"],
-        "CT_timestamp": g["CT_timestamp"],
-        "lfp_left_OvER_interpolate_z_scored": left_series,
-        "lfp_right_OvER_interpolate_z_scored": right_series,  # duplicated hemi
-        })
+    "days_since_dbs": g["days_since_dbs"],
+    "CT_timestamp": g["CT_timestamp"],
+    "lfp_left_OvER_interpolate_z_scored": g["power_z"],
+    "lfp_right_OvER_interpolate_z_scored": np.nan
+})
 
         out = apply_sliding_cosinor(df_input, cosinor_omega=24, window_size_days=3)
         out["band"] = band
         out["chan_name"] = chan_name
         out["patient_name"] = pat_name
-        out["hemi"] = hemi if hemi in {"L", "R"} else "no_hemisphere_data"
         results.append(out)
     
     if results:
@@ -190,7 +171,7 @@ def process_one_csv(csv_path):
     else:
         return pd.DataFrame()   
    
-fol = r"Z:\Provenza\EMU_Circadian-Rhythms\chunks_power"
+fol = "/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/chunks_power_continuous_new"
 
 all_results = []
 
@@ -198,11 +179,10 @@ all_results = []
 csv_paths = [os.path.join(fol, f) for f in os.listdir(fol)]
 
 if __name__ == "__main__":
-    all_dfs = Parallel(n_jobs=29,verbose=10)(delayed(process_one_csv)(p)for p in csv_paths)
+    all_dfs = Parallel(n_jobs=40,verbose=0)(delayed(process_one_csv)(p)for p in csv_paths)
 
     all_results = pd.concat([df for df in all_dfs if not df.empty],ignore_index=True)
 
-    all_results.to_csv(
-        r"Z:\Provenza\EMU_Circadian-Rhythms\acrophase\cosinor_results(leftvsrightHemi).csv",
+    all_results.to_csv("/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/Manuscript_Plots/cosinor_results.csv",
         index=False
         )

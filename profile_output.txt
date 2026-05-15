@@ -1,0 +1,185 @@
+Processing: /mnt/datalake/data/emu/YFADatafile/DATA/20240422-200301/NSP2-20240422-200301-001.ns5
+Processed: /mnt/datalake/data/emu/YFADatafile/DATA/20240422-200301/NSP2-20240422-200301-001.ns5
+Wrote profile results to 'parse_data_into_npy_spikes.py.lprof'
+Timer unit: 1e-06 s
+
+Total time: 160.994 s
+File: parse_data_into_npy_spikes.py
+Function: read_ns5_file at line 40
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    40                                           @profile
+    41                                           def read_ns5_file(ns5_file_path: str):
+    42                                               """
+    43                                               Load full NS5 into MNE Raw, apply bandpass filters:
+    44                                               - 300-1000 Hz for spiking band power
+    45                                               - 300-7000 Hz for MUA threshold crossings (4 * MAD).
+    46                                               """
+    47         1    1253059.8 1.25e+06      0.8      reader = BlackrockIO(filename=ns5_file_path)
+    48         1    8967085.3 8.97e+06      5.6      blk = reader.read_block()
+    49         1          5.0      5.0      0.0      seg = blk.segments[0]
+    50         1          1.4      1.4      0.0      analogsignals = seg.analogsignals
+    51         1          0.6      0.6      0.0      dt = seg.rec_datetime
+    52                                           
+    53         1          1.1      1.1      0.0      analogsignal = analogsignals[0]
+    54         1          7.8      7.8      0.0      fs = float(analogsignal.sampling_rate)
+    55         1          3.1      3.1      0.0      voltages = analogsignal.magnitude
+    56         1         12.9     12.9      0.0      channels = list(analogsignal.array_annotations["channel_names"])
+    57                                           
+    58         1     211374.4 211374.4      0.1      info = mne.create_info(ch_names=channels, sfreq=fs, ch_types="seeg")
+    59         1         14.4     14.4      0.0      dt = dt.astimezone(datetime.timezone.utc)
+    60         1     207493.8 207493.8      0.1      info.set_meas_date(dt)
+    61         1    1445554.2 1.45e+06      0.9      data = voltages.T * 1e-6  * 4 # convert to Volts, times 4 is important bc of neo brpylib conversion
+    62         1     616610.4 616610.4      0.4      data = data.astype(np.float32)
+    63         1    5024724.3 5.02e+06      3.1      raw = mne.io.RawArray(data, info, verbose=False)
+    64                                           
+    65                                               # 300-1000 Hz bandpass for spiking band power
+    66         1   31843472.0 3.18e+07     19.8      raw_bp_spike = raw.copy().filter(l_freq=300.0, h_freq=1000.0, n_jobs=N_JOBS, verbose=False)
+    67         1    2702876.9  2.7e+06      1.7      bp_spike_data = raw_bp_spike.get_data().astype(np.float32)  # (n_channels, n_times)
+    68                                           
+    69                                               # Magnitude in spiking band
+    70         1    1199656.8  1.2e+06      0.7      band_magnitude = np.abs(bp_spike_data).astype(np.float32)
+    71                                           
+    72                                               # 300-7000 Hz bandpass for MUA (multi-unit activity)
+    73         1   23762960.8 2.38e+07     14.8      raw_bp_mua = raw.copy().filter(l_freq=300.0, h_freq=7000.0, n_jobs=N_JOBS, verbose=False)
+    74         1    8850303.9 8.85e+06      5.5      bp_mua_data = raw_bp_mua.get_data().astype(np.float32)  # (n_channels, n_times)
+    75                                           
+    76                                               # MUA by threshold crossing using 4 * MAD (binary output)
+    77         1    4896993.0  4.9e+06      3.0      med = np.median(bp_mua_data, axis=1, keepdims=True)
+    78         1    9820871.3 9.82e+06      6.1      mad = np.median(np.abs(bp_mua_data - med), axis=1, keepdims=True)
+    79         1         64.8     64.8      0.0      threshold = 4.0 * mad
+    80         1    5632518.2 5.63e+06      3.5      mua_binary = (np.abs(bp_mua_data) >= threshold).astype(np.uint8)
+    81                                           
+    82                                               # Downsample outputs to 250 Hz with anti-aliasing filter
+    83         1         30.7     30.7      0.0      downsample_factor = int(fs / 250.0)
+    84         1   31881101.2 3.19e+07     19.8      band_magnitude_ds = signal.decimate(band_magnitude, downsample_factor, axis=1, zero_phase=True)
+    85         1   22677636.8 2.27e+07     14.1      mua_binary_ds = signal.decimate(mua_binary.astype(np.float32), downsample_factor, axis=1, zero_phase=True).astype(np.uint8)
+    86                                           
+    87         1          8.3      8.3      0.0      return band_magnitude_ds, mua_binary_ds, dt, channels
+
+Total time: 2.8311 s
+File: parse_data_into_npy_spikes.py
+Function: ns5_header at line 90
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    90                                           @profile
+    91                                           def ns5_header(ns5_file_path: str, LIMIT_DURATION_MIN: int = None):
+    92                                               """
+    93                                               Lightweight header read to get (timestamp_str_UTC, channel_names) without loading all data.
+    94                                               Uses BlackrockRawIO (header only) and a tiny lazy read to get rec_datetime if needed.
+    95                                               """
+    96         1        571.5    571.5      0.0      r = BlackrockRawIO(filename=ns5_file_path)
+    97         1    1260078.7 1.26e+06     44.5      r.parse_header()
+    98                                           
+    99                                               # Channel names from header
+   100         1          0.9      0.9      0.0      chan_info = r.header["signal_channels"]
+   101         1          0.3      0.3      0.0      try:
+   102         1         40.5     40.5      0.0          ch_names = [c[1] for c in chan_info]  # many neo versions store (id, name, ...)
+   103                                               except Exception:
+   104                                                   ch_names = [c["name"] for c in chan_info]
+   105                                           
+   106                                               # rec_datetime usually not exposed in RawIO header; get via lazy high-level read
+   107         1    1239437.4 1.24e+06     43.8      io = BlackrockIO(filename=ns5_file_path)
+   108         1     330874.7 330874.7     11.7      blk = io.read_block(lazy=True)  # lazy -> doesn't load arrays
+   109         1          4.0      4.0      0.0      dt = blk.segments[0].rec_datetime
+   110         1         24.4     24.4      0.0      dt = dt.astimezone(datetime.timezone.utc)
+   111                                           
+   112         1         56.4     56.4      0.0      sampling_rate = r.get_signal_sampling_rate(0)
+   113         1         10.5     10.5      0.0      samples = r.get_signal_size(0, 0, 0)
+   114         1          1.3      1.3      0.0      duration_min = samples / sampling_rate / 60
+   115                                           
+   116                                               
+   117         1          0.3      0.3      0.0      if LIMIT_DURATION_MIN is not None:
+   118                                                   if duration_min > LIMIT_DURATION_MIN:
+   119                                                       return None, None
+   120                                           
+   121                                           
+   122                                               #timestamp_str = dt.strftime("%Y%m%dT%H%M%S")
+   123         1          0.6      0.6      0.0      return dt, ch_names
+
+Total time: 164.747 s
+File: parse_data_into_npy_spikes.py
+Function: process_file at line 125
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   125                                           @profile
+   126                                           def process_file(data_range_path: str, ns5_file: str, path_output: str, subject: str):
+   127                                           
+   128         1         19.2     19.2      0.0      ns5_file_path = os.path.join(data_range_path, ns5_file)
+   129                                           
+   130         1          0.4      0.4      0.0      try:
+   131                                                   # Quick header probe: timestamp + channels
+   132         1    2831145.7 2.83e+06      1.7          timestamp_str, ch_names = ns5_header(ns5_file_path)
+   133         1          0.4      0.4      0.0          if timestamp_str is None:
+   134                                                      print(f"Skip (too long): {ns5_file_path}")
+   135                                                      return
+   136         1         35.9     35.9      0.0          str_dt = timestamp_str.strftime("%Y%m%dT%H%M%S%f")
+   137         1          1.0      1.0      0.0          out_filename = f"{subject}_{str_dt}_data.npy"
+   138         1         54.0     54.0      0.0          if os.path.exists(os.path.join(path_output, out_filename)):
+   139                                                       print(f"Skip (exists): {ns5_file_path}")
+   140                                                       return
+   141                                           
+   142         1          9.6      9.6      0.0          print(f"Processing: {ns5_file_path}")
+   143         1  161116047.7 1.61e+08     97.8          band_magnitude, mua_binary, dt, ch_names = read_ns5_file(ns5_file_path)
+   144         1        111.3    111.3      0.0          str_dt = dt.strftime("%Y%m%dT%H%M%S")
+   145                                           
+   146         1         30.4     30.4      0.0          print(f"Processed: {ns5_file_path}")
+   147                                           
+   148                                                   # Combine outputs into single array: [band_magnitude, mua_binary]
+   149         1     544592.0 544592.0      0.3          combined_data = np.stack([band_magnitude.astype(np.float16), mua_binary.astype(np.uint8)])
+   150         1     227608.6 227608.6      0.1          np.save(os.path.join(path_output, f"{subject}_{str_dt}_sbp_mua.npy"), combined_data)
+   151                                           
+   152                                                   # save the ch_names as csv
+   153         1       2259.3   2259.3      0.0          df_ch = pd.DataFrame({"channel_names": ch_names})
+   154         1      25001.9  25001.9      0.0          df_ch.to_csv(os.path.join(path_output, f"{subject}_{str_dt}_channels.csv"), index=False)
+   155                                           
+   156                                               except Exception as e:
+   157                                                   try:
+   158                                                       # Goes to both main & error log; includes traceback
+   159                                                       print(f"Error processing file using neo {ns5_file_path}: {e}")
+   160                                                       # try to open using brpylib
+   161                                                       nsx_file = brpylib.NsxFile(ns5_file_path) 
+   162                                                       data = nsx_file.getdata()
+   163                                                       data_duration_s = data["data_headers"][0]["data_time_s"]
+   164                                                       data_arr = data["data"][0]
+   165                                                       fs = data["samp_per_s"]
+   166                                                       df_elec = pd.DataFrame(nsx_file.extended_headers)
+   167                                                       # units: df_elec["Units"].unique()
+   168                                                       channels = df_elec["ElectrodeLabel"].tolist()
+   169                                                       meas_dat = nsx_file.basic_header["TimeOrigin"]
+   170                                                       str_dt = meas_dat.strftime("%Y%m%dT%H%M%S")
+   171                                           
+   172                                                       raw = mne.io.RawArray((data_arr * 1e-6).astype(np.float32), mne.create_info(channels, fs, ch_types="seeg"), verbose=False)
+   173                                                       
+   174                                                       # 300-1000 Hz bandpass for spiking band power
+   175                                                       raw_bp_spike = raw.copy().filter(l_freq=300.0, h_freq=1000.0, n_jobs=N_JOBS, verbose=False)
+   176                                                       bp_spike_data = raw_bp_spike.get_data().astype(np.float32)
+   177                                                       band_magnitude = np.abs(bp_spike_data).astype(np.float32)
+   178                                                       
+   179                                                       # 300-7000 Hz bandpass for MUA (multi-unit activity)
+   180                                                       raw_bp_mua = raw.copy().filter(l_freq=300.0, h_freq=7000.0, n_jobs=N_JOBS, verbose=False)
+   181                                                       bp_mua_data = raw_bp_mua.get_data().astype(np.float32)
+   182                                                       med = np.median(bp_mua_data, axis=1, keepdims=True)
+   183                                                       mad = np.median(np.abs(bp_mua_data - med), axis=1, keepdims=True)
+   184                                                       threshold = 4.0 * mad
+   185                                                       mua_binary = (np.abs(bp_mua_data) >= threshold).astype(np.uint8)
+   186                                           
+   187                                                       # Downsample outputs to 250 Hz with anti-aliasing filter
+   188                                                       downsample_factor = int(fs / 250.0)
+   189                                                       band_magnitude = signal.decimate(band_magnitude, downsample_factor, axis=1, zero_phase=True).astype(np.float16)
+   190                                                       mua_binary = signal.decimate(mua_binary.astype(np.float32), downsample_factor, axis=1, zero_phase=True).astype(np.uint8)
+   191                                           
+   192                                                       # Combine outputs into single array: [band_magnitude, mua_binary]
+   193                                                       combined_data = np.stack([band_magnitude, mua_binary])
+   194                                                       np.save(os.path.join(path_output, f"{subject}_{str_dt}_data.npy"), combined_data)
+   195                                                       df_ch = pd.DataFrame({"channel_names": channels})
+   196                                                       df_ch.to_csv(os.path.join(path_output, f"{subject}_{str_dt}_channels.csv"), index=False)
+   197                                           
+   198                                                       print(f"Processed with brpylib: {ns5_file_path}")
+   199                                                   except Exception as e2:
+   200                                                       print(f"Error processing file using brpylib {ns5_file_path}: {e2}")
+   201                                                       return
+

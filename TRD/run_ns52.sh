@@ -16,4 +16,4 @@ mkdir -p "$TMPDIR"
 
 export PYTHONPATH=/mnt/labworlds/Provenza/EMU_Circadian-Rhythms #this is for finding imports
 
-python compute_plots.py
+python continuous_file_processing.py

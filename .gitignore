@@ -37,3 +37,18 @@ Manuscript_Plots/*
 *.csv
 TRD/*.csv
 
+pre/logs*
+pre/chunks_out_fixed/*
+pre/circ_power/*
+pre/circ_power_shuffled/*
+pre/data_250Hz/*
+pre/continuous_data/*
+chunks_out_fixed_new/*
+circ_power_new/*
+circ_power_shuffled_new/*
+continuous_data_new/
+*.log
+
+data_250Hz_spikes/*
+*.out
+logs3/*

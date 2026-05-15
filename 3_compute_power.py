@@ -35,7 +35,7 @@ def compute_patient_ch(patient_folder, ch):
         f, Pxx = welch(data,fs=250,window ="hamming",nperseg=250,noverlap=125,nfft=256,detrend="constant",scaling="density",average="mean")
         
         for f_range, f_name in zip(f_l, f_names):
-            idx = (f >= f_range[0]) & (f < f_range[1])
+            idx = (f >= f_range[0]) & (f <= f_range[1])
             mean_power = np.mean(Pxx[idx])
             l_.append({
                 "sub" : sub,

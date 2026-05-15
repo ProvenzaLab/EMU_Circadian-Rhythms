@@ -19,7 +19,7 @@ fs = 250
 
 l_ = []
 
-f_l = [[0, 4], [4, 8], [8, 15], [15, 30], [30, 55], [65, 125]]
+f_l = [[3, 4], [4, 8], [8, 15], [15, 30], [30, 55], [65, 110]] #Made it b/t 3-110 Hz so it fits the FOOOF model
 f_names = ["delta", "theta", "alpha", "beta", "low_gamma", "high_gamma"]
 
 def compute_patient_ch(patient_folder, ch):
@@ -58,14 +58,15 @@ def compute_patient_ch(patient_folder, ch):
         pw_low = 2 * df        
 
         fm = FOOOF(peak_width_limits=(pw_low, 12.0))
+
         try:
-            fm.fit(f, Pxx, freq_range)
+            fm.fit(f, Pxx_norm, freq_range)
         except Exception as e:
             continue
         
         for f_range, f_name in zip(f_l, f_names):
-            idx = (f >= f_range[0]) & (f < f_range[1])
-            mean_power = np.mean(Pxx_norm[idx])
+            idx = (f >= f_range[0]) & (f <= f_range[1])
+            mean_power = np.mean(fm._spectrum_flat[idx]) #using the flattened model after subtracting out the aperiodic component
             l_.append({
                 "sub" : sub,
                 "ch" : ch,
@@ -73,9 +74,7 @@ def compute_patient_ch(patient_folder, ch):
                 "band": f_name,
                 "power": mean_power,
                 "average_voltage": mean_data,
-                "aperiodic": fm.aperiodic_params_,
-                "FOOOF error": fm.error_,
-                "R^2": fm.r_squared_
+                "aperiodic": fm.aperiodic_params_
             })
 
     df_power = pd.DataFrame(l_)

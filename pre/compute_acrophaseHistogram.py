@@ -6,7 +6,7 @@ import seaborn as sns
 
 sns.set_theme(style="whitegrid")
 
-df = pd.read_csv(r"Z:\Provenza\EMU_Circadian-Rhythms\acrophase\cosinor_results.csv")
+df = pd.read_csv("/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/Manuscript_Plots/cosinor_results.csv")
 bands = ['delta','theta','alpha','beta','low_gamma','high_gamma']
 
 
@@ -27,7 +27,7 @@ sns.histplot(
     x="acrophase_hr",
     hue="band",
     bins=bins,
-    element="step",   # outline only (cleaner overlay)
+    element="step",   
     stat="count",
     common_bins=True,
     common_norm=False
