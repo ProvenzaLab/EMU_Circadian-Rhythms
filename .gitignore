@@ -52,3 +52,5 @@ continuous_data_new/
 data_250Hz_spikes/*
 *.out
 logs3/*
+data_quality_check/*
+*.err

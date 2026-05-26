@@ -151,6 +151,9 @@ def main():
 
 
 if __name__ == "__main__":
+
+    df = pd.read_csv("available_spike_progress.csv")
+    
     main()
 
 #nohup python available_spike_progress.py --output available_spike_progress.csv > progress_check.out 2>&1 &

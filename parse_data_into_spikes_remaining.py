@@ -10,14 +10,6 @@ DEFAULT_CSV_PATH = "/mnt/labworlds/Provenza/EMU_Circadian-Rhythms/available_spik
 REQUIRED_COLUMNS = ["data_range_path", "l_ns5_file", "sub_path_out", "subject", "exists"]
 
 
-def load_rows(csv_path: str) -> pd.DataFrame:
-	df = pd.read_csv(csv_path)
-	missing_columns = [column for column in REQUIRED_COLUMNS if column not in df.columns]
-	if missing_columns:
-		raise ValueError(f"Missing required columns in {csv_path}: {missing_columns}")
-	return df
-
-
 def exists_is_true(exists_value) -> bool:
 	if pd.isna(exists_value):
 		return False
@@ -49,13 +41,10 @@ def process_csv_row(row: pd.Series, row_index: int, total_rows: int):
 
 
 def main():
-	df = load_rows(DEFAULT_CSV_PATH)
+	df = pd.read_csv(DEFAULT_CSV_PATH).query("exists != 'exists'").reset_index(drop=True)
 	total_rows = len(df)
-	if total_rows == 0:
-		print(f"No rows found in {DEFAULT_CSV_PATH}")
-		return
 
-	row_index = int(sys.argv[1]) if len(sys.argv) > 1 else 5944
+	row_index = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 	if row_index < 0 or row_index >= total_rows:
 		raise IndexError(f"Row index out of range: {row_index}. CSV has {total_rows} rows.")
 

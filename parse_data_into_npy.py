@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # get all files ending with ns3 in folders, sub-folders, and sub-sub-folders
     PASS_NS3_CHECK = False
     #for subject in subjects:
-    subject = subjects[int(sys.argv[1])]
+    subject = subjects[int(sys.argv[1]) if len(sys.argv) > 1 else 0]
     subject_path = os.path.join(PATH_DATA, subject)
     sub_path_out = os.path.join(PATH_OUT, subject)
     os.makedirs(sub_path_out, exist_ok=True)

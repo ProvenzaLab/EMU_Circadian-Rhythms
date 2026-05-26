@@ -32,7 +32,7 @@ os.makedirs(PATH_OUT, exist_ok=True)
 # =========================
 def read_ns3_file(ns3_file_path: str) -> mne.io.Raw:
     """
-    Load full NS3 into MNE Raw and resample to 400 Hz.
+    Load full NS3 into MNE Raw and resample to 250 Hz.
     """
     reader = BlackrockIO(filename=ns3_file_path)
     blk = reader.read_block()

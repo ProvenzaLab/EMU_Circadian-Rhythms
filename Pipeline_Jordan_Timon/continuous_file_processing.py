@@ -43,12 +43,12 @@ def compute_patient_ch(file_name):
     dt_string = parts[2].replace(".npy", "")
     dt = datetime.strptime(dt_string, "%Y%m%d-%H%M%S.%f") #format example: 2024-07-21 12:30:12
 
-    interval = (250*60*10)
+    interval = (250*60*10) #10 minutes
     start = 0
 
     while start < len(data):
 
-        data_curr = data[start:start+interval]
+        data_curr = data[start:start+interval] #10 minutes later
         start += interval
 
         num_nan = np.sum(np.isnan(data_curr))
@@ -68,7 +68,7 @@ def compute_patient_ch(file_name):
             break
             
         
-        if np.sum(np.isnan(data_curr)) <= 50: #check for 3 or less NaNs and interpolate, otherwise skip
+        if np.sum(np.isnan(data_curr)) <= 50: #check for 50 or less NaNs and interpolate, otherwise skip
             nans = np.isnan(data_curr)
             not_nans = ~nans
             data_curr[nans] = np.interp(
@@ -82,7 +82,7 @@ def compute_patient_ch(file_name):
 
 
 
-        data_curr = mne.filter.notch_filter(x=data_curr,Fs=250,freqs=60) #notch filters at 60 and 120 Hz
+        data_curr = mne.filter.notch_filter(x=data_curr,Fs=250,freqs=60) #notch filters at 60 
        
         mean_data = np.mean(data_curr)
         #no z-score with FOOOF
